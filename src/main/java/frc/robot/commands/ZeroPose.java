@@ -27,7 +27,7 @@ public class ZeroPose extends Command {
   // Called when the command is initially scheduled.
   @Override
   public void initialize() {
-    s_Swerve.setPose(pose2D);
+    s_Swerve.resetPose(pose2D);
   }
 
   // Called every time the scheduler runs while the command is scheduled.

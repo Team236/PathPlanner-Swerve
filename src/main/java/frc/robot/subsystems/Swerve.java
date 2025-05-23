@@ -13,6 +13,10 @@ import java.util.Optional;
 
 import com.ctre.phoenix6.configs.Pigeon2Configuration;
 import com.ctre.phoenix6.hardware.Pigeon2;
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.PIDController;
@@ -68,20 +72,54 @@ public class Swerve extends SubsystemBase {
 
         swerveOdometry = new SwerveDriveOdometry(Constants.Swerve.swerveKinematics, getGyroYaw(), getModulePositions());
 
-/* Here we use SwerveDrivePoseEstimator so that we can fuse odometry readings, for 3D targeting. 
-The numbers used below are robot specific, and should be tuned. */
-   m_poseEstimator = new SwerveDrivePoseEstimator(
-     Constants.Swerve.swerveKinematics,
-      gyro.getRotation2d(),
-      new SwerveModulePosition[] {
-        mSwerveMods[0].getPosition(), //front left
-        mSwerveMods[1].getPosition(), //front right
-        mSwerveMods[2].getPosition(), //back left
-        mSwerveMods[3].getPosition()  //back right
-      },
-      new Pose2d(),
-      VecBuilder.fill(0.05, 0.05, Math.toRadians(5)), //std deviations in X, Y (meters), and angle of the pose estimate
-      VecBuilder.fill(0.5, 0.5, Math.toRadians(30)));  //std deviations  in X, Y (meters) and angle of the vision (LL) measurement
+        /* Here we use SwerveDrivePoseEstimator so that we can fuse odometry readings, for 3D targeting. 
+        The numbers used below are robot specific, and should be tuned. */
+        m_poseEstimator = new SwerveDrivePoseEstimator(
+            Constants.Swerve.swerveKinematics,
+            gyro.getRotation2d(),
+            new SwerveModulePosition[] {
+                 mSwerveMods[0].getPosition(), //front left
+                mSwerveMods[1].getPosition(), //front right
+                mSwerveMods[2].getPosition(), //back left
+                mSwerveMods[3].getPosition()  //back right
+            },
+            new Pose2d(),
+            VecBuilder.fill(0.05, 0.05, Math.toRadians(5)), //std deviations in X, Y (meters), and angle of the pose estimate
+            VecBuilder.fill(0.5, 0.5, Math.toRadians(30))  //std deviations  in X, Y (meters) and angle of the vision (LL) measurement
+        );
+
+        // PATH PLANNER
+
+        RobotConfig config = null;
+        try {
+            config = RobotConfig.fromGUISettings();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (config == null) {
+            System.out.println("PathPlanner RobotConfig null, may have errored");
+        } else {
+            AutoBuilder.configure(
+                this::getPose,
+                this::resetPose,
+                this::getChassisSpeeds,
+                (speeds, feedforwards) -> driveWithChassisSpeeds(speeds),
+                new PPHolonomicDriveController(
+                    new PIDConstants(5.0, 0.0, 0.0), //translation
+                    new PIDConstants(5.0, 0.0, 0.0)  // rotation -- both can be tuned I think
+                ),
+                config,
+                () -> { 
+                    Optional<Alliance> alliance = DriverStation.getAlliance();
+                    if (alliance.isPresent()) {
+                        return alliance.get() == Alliance.Red; //0 = red, 1 = blue
+                    }
+                    return false;
+                },
+                this
+            );
+        }
     }
 
 //Methods start here:
@@ -132,11 +170,26 @@ The numbers used below are robot specific, and should be tuned. */
         return positions;
     }
 
+    public void driveWithChassisSpeeds(ChassisSpeeds chassisSpeeds) {
+        SwerveModuleState[] swerveModuleStates = Constants.Swerve.swerveKinematics.toSwerveModuleStates(chassisSpeeds);
+        SwerveDriveKinematics.desaturateWheelSpeeds(swerveModuleStates, Constants.Swerve.maxSpeed);
+
+        for(SwerveModule mod : mSwerveMods){
+            mod.setDesiredState(swerveModuleStates[mod.moduleNumber], true); //TODO: may be worth it to check out closedLoop, especially for auto. light research indicates it may be more precise?
+        }
+    }
+
+    public ChassisSpeeds getChassisSpeeds() {
+        SwerveModuleState[] states = getModuleStates();
+        ChassisSpeeds fieldRelFromStates = Constants.Swerve.swerveKinematics.toChassisSpeeds(states);
+        return ChassisSpeeds.fromFieldRelativeSpeeds(fieldRelFromStates, getHeading());
+    }
+
     public Pose2d getPose() {
         return swerveOdometry.getPoseMeters();
     }
 
-    public void setPose(Pose2d pose) {
+    public void resetPose(Pose2d pose) {
         swerveOdometry.resetPosition(getGyroYaw(), getModulePositions(), pose);
     }
 
@@ -176,11 +229,11 @@ The numbers used below are robot specific, and should be tuned. */
         if (ally.isPresent()  && (tv == 1)) { //have alliance color and see target
             if (ally.get() == Alliance.Red){
             poseLL = LimelightHelpers.getBotPose2d_wpiRed("limelight");
-            //  s_Swerve.setPose(poseLL); //do this later in ResetPose command
+            //  s_Swerve.resetPose(poseLL); //do this later in ResetPose command
             }
             if (ally.get() == Alliance.Blue){
             poseLL = LimelightHelpers.getBotPose2d_wpiBlue("limelight");
-            // s_Swerve.setPose(poseLL); //do this later in ResetPose command
+            // s_Swerve.resetPose(poseLL); //do this later in ResetPose command
             }   
         }
         //else do nothing
@@ -195,17 +248,17 @@ The numbers used below are robot specific, and should be tuned. */
             this.targetPose = targetPose; //do this later in ResetPose command
         }   
 
-        // this.setPose(targetPose);
+        // this.resetPose(targetPose);
 
     }
 
     public void resetFieldPoseWithTarget() {
-        setPose(targetPose);
+        resetPose(targetPose);
     }
 
     public void resetLLPose() {
         if (poseLL != null) {
-            setPose(poseLL);
+            resetPose(poseLL);
         }
     }
 
