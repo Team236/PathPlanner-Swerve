@@ -3,6 +3,8 @@
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 package frc.robot;
+import com.pathplanner.lib.commands.PathPlannerAuto;
+
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.util.Units;
@@ -36,6 +38,8 @@ public class RobotContainer {
   private static DigitalInput autoSwitch2 = new DigitalInput(Constants.DIO_AUTO_2);
   private static DigitalInput autoSwitch3 = new DigitalInput(Constants.DIO_AUTO_3);
   private static DigitalInput autoSwitch4 = new DigitalInput(Constants.DIO_AUTO_4);
+
+  private final PathPlannerAuto PPexampleAuto = new PathPlannerAuto("AutoThatDoesNotExist");
 
    //Subsystems
   // private final AlgaeHold  algaeHold = new AlgaeHold();
@@ -347,29 +351,8 @@ public class RobotContainer {
 
   public Command getAutonomousCommand() {
 
-  // SmartDashboard.putString("autokey", "Entering getAutoCommand now");
-  SmartDashboard.putString("Asking for auto sequence", "" + !autoSwitch1.get() + !autoSwitch2.get() + !autoSwitch3.get() + !autoSwitch4.get());
-  Command command = null;
-
-
-  //! means switch is on
-  if (!autoSwitch1.get() && !autoSwitch2.get() && !autoSwitch3.get() && !autoSwitch4.get()) {
-
-  } else if (!autoSwitch1.get() && !autoSwitch2.get() && !autoSwitch3.get() && autoSwitch4.get()) {
-
-  } else if (!autoSwitch1.get() && !autoSwitch2.get() && autoSwitch3.get() && autoSwitch4.get()) {
-
-  } else if (autoSwitch1.get() && !autoSwitch2.get() && !autoSwitch3.get() && !autoSwitch4.get()) {
-
-  } else if (autoSwitch1.get() && !autoSwitch2.get() && !autoSwitch3.get() && autoSwitch4.get()) {
-
-  } else if (autoSwitch1.get() && !autoSwitch2.get() && autoSwitch3.get() && autoSwitch4.get()) {
-
-  } else if (autoSwitch1.get() && autoSwitch2.get() && autoSwitch3.get() && autoSwitch4.get()) {
-
-  } 
- return command;
-}
+    return PPexampleAuto;
+  }
 
 }
     /* 

@@ -98,7 +98,7 @@ public class Swerve extends SubsystemBase {
         }
 
         if (config == null) {
-            System.out.println("PathPlanner RobotConfig null, may have errored");
+            System.out.println("PathPlanner RobotConfig settings null, may have errored");
         } else {
             AutoBuilder.configure(
                 this::getPose,
@@ -175,7 +175,7 @@ public class Swerve extends SubsystemBase {
         SwerveDriveKinematics.desaturateWheelSpeeds(swerveModuleStates, Constants.Swerve.maxSpeed);
 
         for(SwerveModule mod : mSwerveMods){
-            mod.setDesiredState(swerveModuleStates[mod.moduleNumber], true); //TODO: may be worth it to check out closedLoop, especially for auto. light research indicates it may be more precise?
+            mod.setDesiredState(swerveModuleStates[mod.moduleNumber], true); //TODO: may be worth it to check out closedLoop, especially for auto. light research indicates it may be more precise (but less responsive to input)?
         }
     }
 
