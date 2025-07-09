@@ -8,6 +8,7 @@ import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,11 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.pathplanner.lib.path.GoalEndState;
+import com.pathplanner.lib.path.IdealStartingState;
+import com.pathplanner.lib.path.PathConstraints;
+import com.pathplanner.lib.path.PathPlannerPath;
+import com.pathplanner.lib.path.Waypoint;
 
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.PIDController;
@@ -33,6 +39,8 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
@@ -176,6 +184,77 @@ public class Swerve extends SubsystemBase {
 
         for(SwerveModule mod : mSwerveMods){
             mod.setDesiredState(swerveModuleStates[mod.moduleNumber], true); //TODO: may be worth it to check out closedLoop, especially for auto. light research indicates it may be more precise (but less responsive to input)?
+        }
+    }
+
+    //Follows path that assumes starting pose is robot's current pose
+    public Command followPathCommand(String pathName) {
+        try {
+            PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
+            
+            return AutoBuilder.followPath(path);
+        } catch (Exception e) {
+            DriverStation.reportError(e.getMessage(), e.getStackTrace());
+            return Commands.none();
+        }
+    }
+
+    //Follows a path where end pose does not change, but it starts at the robot's current pose. Does not retain event markers (if applicable)
+    public Command followPathCommandRobotStartingPose(String pathName) {
+        try {
+            PathPlannerPath originalPath = PathPlannerPath.fromPathFile(pathName);
+            PathConstraints constraints = originalPath.getGlobalConstraints(); // just use original path's constraints by default. if this doesn't work then can reconstruct
+
+            List<Waypoint> newWaypoints = originalPath.getWaypoints();
+            newWaypoints.set(0, PathPlannerPath.waypointsFromPoses(this.getPose()).get(0)); // turns robot's current pose into waypoint, sets it as first waypoint
+
+            PathPlannerPath path = new PathPlannerPath(
+                newWaypoints, 
+                constraints, 
+                null, 
+                originalPath.getGoalEndState()
+            );
+            
+            return AutoBuilder.followPath(path);
+        } catch (Exception e) {
+            DriverStation.reportError(e.getMessage(), e.getStackTrace());
+            return Commands.none();
+        }
+    }
+
+    //Follows path relative to robot's current pose (shifts all poses and states to accomodate). Different than just changing the starting pose to Robot and keeping end same (as above)
+    public Command followPathCommandRobotRelative(String pathName) {
+        try {
+            PathPlannerPath originalPath = PathPlannerPath.fromPathFile(pathName);
+
+            PathConstraints constraints = originalPath.getGlobalConstraints(); // just use original path's constraints by default. if this doesn't work then can reconstruct
+            IdealStartingState originalStartingState = originalPath.getIdealStartingState();
+            GoalEndState originalGoalEndState = originalPath.getGoalEndState();
+            
+            Pose2d pathInitialPose = originalPath.getStartingHolonomicPose().get(); 
+            List<Pose2d> newPoses = new ArrayList<>();
+            newPoses.add(this.getPose()); // start with current robot pose
+
+            int i = 0;
+            for (Pose2d pose : originalPath.getPathPoses()) {
+                if (i > 0) { // skip first pose since it has already been added
+                    newPoses.add(this.getPose().transformBy(pose.minus(pathInitialPose))); 
+                }
+
+                i++;
+            }
+
+            PathPlannerPath path = new PathPlannerPath(
+                PathPlannerPath.waypointsFromPoses(newPoses),
+                constraints, 
+                new IdealStartingState(originalStartingState.velocity(), originalStartingState.rotation().plus(getHeading().minus(pathInitialPose.getRotation()))), 
+                new GoalEndState(originalGoalEndState.velocity(), originalGoalEndState.rotation().plus(getHeading().minus(pathInitialPose.getRotation())))
+            );
+
+            return AutoBuilder.followPath(path);
+        } catch (Exception e) {
+            DriverStation.reportError(e.getMessage(), e.getStackTrace());
+            return Commands.none();
         }
     }
 
