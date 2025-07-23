@@ -144,7 +144,7 @@ public class RobotContainer {
 
     a.onTrue(new StopRobot(s_Swerve));
     b.onTrue(s_Swerve.followPathCommand("Test"));
-    x.onTrue(s_Swerve.followPathCommand("Test").andThen(s_Swerve.followPathCommand("Test2")));
+    x.onTrue(s_Swerve.followPathCommand("Test").andThen(s_Swerve.followPathCommand("Path2")));
   }
 
   public Command getAutonomousCommand() {

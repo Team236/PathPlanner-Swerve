@@ -12,6 +12,8 @@ import java.util.Map;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.SensorDirectionValue;
+import com.pathplanner.lib.config.PIDConstants;
+
 import frc.lib.util.SwerveModuleConstants;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -120,6 +122,11 @@ public final class Constants {
     public static final double POSE_VALIDATION_TIME = 2; //TODO - shorten
 }
 
+public static final class PathPlanner {
+  public static final PIDConstants TRANSLATION_PID_CONSTANTS = new PIDConstants(1.0, 0.0, 0.0);
+  public static final PIDConstants ROTATION_PID_CONSTANTS = new PIDConstants(1.0, 0.0, 0.0);
+}
+
 public static final class Swerve {
         public static final int pigeonID = 1; //gryo
 
@@ -183,7 +190,7 @@ public static final class Swerve {
         public static final double driveKA = 0; //.27; 
 
         /* Swerve Profiling Values, Meters per Second*/
-        public static final double maxSpeed = 4.5; //TODO: This must be tuned to specific robot
+        public static final double maxSpeed = 2.5; // 4.5 old //TODO: This must be tuned to specific robot
         /** Radians per Second */
         public static final double maxAngularVelocity = 10.0; //TODO: This must be tuned to specific robot
 

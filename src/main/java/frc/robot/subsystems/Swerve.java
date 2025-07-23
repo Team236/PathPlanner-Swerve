@@ -98,6 +98,8 @@ public class Swerve extends SubsystemBase {
 
         // PATH PLANNER
 
+        SmartDashboard.putString("Starting swerve and pathplanner", "yes");
+
         RobotConfig config = null;
         try {
             config = RobotConfig.fromGUISettings();
@@ -114,8 +116,8 @@ public class Swerve extends SubsystemBase {
                 this::getChassisSpeeds,
                 (speeds, feedforwards) -> driveWithChassisSpeeds(speeds),
                 new PPHolonomicDriveController(
-                    new PIDConstants(5.0, 0.0, 0.0), //translation
-                    new PIDConstants(5.0, 0.0, 0.0)  // rotation -- both can be tuned I think
+                    Constants.PathPlanner.TRANSLATION_PID_CONSTANTS, //translation
+                    Constants.PathPlanner.ROTATION_PID_CONSTANTS // rotation -- both can be tuned I think
                 ),
                 config,
                 () -> { 
@@ -190,8 +192,27 @@ public class Swerve extends SubsystemBase {
     //Follows path that assumes starting pose is robot's current pose (by resetting the robots odometry to be the start pose of the path)
     public Command followPathCommand(String pathName) {
         try {
+            SmartDashboard.putNumber("RobotPoseX before path start", this.getPose().getX());
+            SmartDashboard.putNumber("RobotPoseY before path start", this.getPose().getY());
+            SmartDashboard.putNumber("RobotPoseRotation before path start", this.getPose().getRotation().getDegrees());
+
             PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
             this.resetPose(path.getStartingHolonomicPose().get());
+
+            SmartDashboard.putNumber("RobotPoseX AFTER", this.getPose().getX());
+            SmartDashboard.putNumber("RobotPoseY AFTER", this.getPose().getY());
+            SmartDashboard.putNumber("RobotPoseRotation AFTER", this.getPose().getRotation().getDegrees());
+
+            Waypoint pathStartWaypoint = path.getWaypoints().get(0);
+            SmartDashboard.putNumber("Path start  X", pathStartWaypoint.anchor().getX());
+            SmartDashboard.putNumber("Path start  Y", pathStartWaypoint.anchor().getY());
+            SmartDashboard.putNumber("Path start  Rotation", path.getStartingHolonomicPose().get().getRotation().getDegrees());
+
+            Waypoint pathEndWaypoint = path.getWaypoints().get(path.getWaypoints().size() - 1);
+            SmartDashboard.putNumber("Path end  X", pathEndWaypoint.anchor().getX());
+            SmartDashboard.putNumber("Path end  Y", pathEndWaypoint.anchor().getY());
+            SmartDashboard.putNumber("Path end  Rotation", path.getGoalEndState().rotation().getDegrees());
+
             
             return AutoBuilder.followPath(path);
         } catch (Exception e) {
@@ -528,6 +549,7 @@ public Trajectory getTargetingTrajectory(double fwdDist1, double sideDist1, doub
       //  SmartDashboard.putNumber("limelight standoff fwd", LimelightHelpers.getTargetPose_CameraSpace("limelight")[2]);
 
        swerveOdometry.update(getGyroYaw(), getModulePositions());
+       System.out.println(swerveOdometry.getPoseMeters().getX() + " " + swerveOdometry.getPoseMeters().getY() + " Rotation: " + swerveOdometry.getPoseMeters().getRotation().getDegrees());
 
         //for(SwerveModule mod : mSwerveMods){
          // SmartDashboard.putNumber("Mod " + mod.moduleNumber + " CANcoder degrees", mod.getCANcoder().getDegrees());
