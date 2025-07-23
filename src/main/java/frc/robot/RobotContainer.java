@@ -143,11 +143,14 @@ public class RobotContainer {
     //DRIVER CONTROLLER
 
     a.onTrue(new StopRobot(s_Swerve));
-    
+    b.onTrue(s_Swerve.followPathCommand("Test"));
+    x.onTrue(s_Swerve.followPathCommand("Test").andThen(s_Swerve.followPathCommand("Test2")));
   }
 
   public Command getAutonomousCommand() {
     try{
+        //NOTE: Look at Build an Auto page on PP docs for other way, which is to create/return PathPlannerAuto
+
         // Load the path you want to follow using its name in the GUI
         PathPlannerPath path = PathPlannerPath.fromPathFile("Test");
 

@@ -187,10 +187,11 @@ public class Swerve extends SubsystemBase {
         }
     }
 
-    //Follows path that assumes starting pose is robot's current pose
+    //Follows path that assumes starting pose is robot's current pose (by resetting the robots odometry to be the start pose of the path)
     public Command followPathCommand(String pathName) {
         try {
             PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
+            this.resetPose(path.getStartingHolonomicPose().get());
             
             return AutoBuilder.followPath(path);
         } catch (Exception e) {
