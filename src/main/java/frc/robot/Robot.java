@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import com.pathplanner.lib.commands.FollowPathCommand;
+
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
@@ -59,6 +61,8 @@ public class Robot extends TimedRobot {
                    Constants.AutoConstants.kMaxAccelerationMetersPerSecondSquared)
                .setKinematics(Constants.Swerve.swerveKinematics).setReversed(false);
 
+    // suggested by PathPlanner documentation; removes potential delay from first paths run, does NOT control robot
+    FollowPathCommand.warmupCommand().schedule();
 
     //Need to do this once in order to have Limelight communication while tethered
     for (int port = 5800; port <= 5805; port++){

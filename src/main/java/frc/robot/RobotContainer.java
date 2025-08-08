@@ -3,6 +3,8 @@
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 package frc.robot;
+import java.util.Set;
+
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.commands.PathPlannerAuto;
@@ -46,6 +48,9 @@ public class RobotContainer {
 
   //Subsystems 
   private final Swerve s_Swerve = new Swerve();
+
+  //PathPlanner
+  private final PathPlannerAuto autoTest = new PathPlannerAuto("AutoTest");
 
   /* Drive Controls */
   private final int translationAxis = XboxController.Axis.kLeftY.value;
@@ -144,19 +149,22 @@ public class RobotContainer {
 
     a.onTrue(new StopRobot(s_Swerve));
     // try Commands.defer()?
-    b.onTrue(s_Swerve.followPathCommand("Test"));
+    b.onTrue(Commands.defer(() -> s_Swerve.followPathCommand("Test"), Set.of(s_Swerve)));
+    x.onTrue(Commands.defer(() -> s_Swerve.followPathCommandRobotRelative("Test"), Set.of(s_Swerve)));
     // x.onTrue(s_Swerve.followPathCommand("Test").andThen(s_Swerve.followPathCommand("Path2")));
   }
 
   public Command getAutonomousCommand() {
     try{
-        //NOTE: Look at Build an Auto page on PP docs for other way, which is to create/return PathPlannerAuto
+        // // METHOD 1: Return PathPlannerPath
+        // // Load the path you want to follow using its name in the GUI
+        // PathPlannerPath path = PathPlannerPath.fromPathFile("Test");
 
-        // Load the path you want to follow using its name in the GUI
-        PathPlannerPath path = PathPlannerPath.fromPathFile("Test");
+        // // Create a path following command using AutoBuilder. This will also trigger event markers.
+        // return AutoBuilder.followPath(path);
 
-        // Create a path following command using AutoBuilder. This will also trigger event markers.
-        return AutoBuilder.followPath(path);
+        // METHOD 2: Return PathPlannerAuto (loaded/declared above next to subsystems)
+        return autoTest;
     } catch (Exception e) {
         DriverStation.reportError("Big oops: " + e.getMessage(), e.getStackTrace());
         return Commands.none();

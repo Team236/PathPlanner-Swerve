@@ -15,6 +15,7 @@ import java.util.Optional;
 import com.ctre.phoenix6.configs.Pigeon2Configuration;
 import com.ctre.phoenix6.hardware.Pigeon2;
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.commands.FollowPathCommand;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
@@ -39,6 +40,7 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.FieldObject2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -195,7 +197,7 @@ public class Swerve extends SubsystemBase {
         }
     }
 
-    //Follows path that assumes starting pose is robot's current pose (by resetting the robots odometry to be the start pose of the path)
+    //Follows path that assumes starting pose is robot's current pose (by RESETTING the robots odometry to be the start pose of the path)
     public Command followPathCommand(String pathName) {
         try {
             SmartDashboard.putNumber("RobotPoseX before path start", this.getPose().getX());
@@ -204,6 +206,8 @@ public class Swerve extends SubsystemBase {
 
             PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
             this.resetPose(path.getStartingHolonomicPose().get());
+            
+            // Implement something here to get whether red or blue alliance and flip above pose ^ accordingly (and reset odometry to it)
 
             SmartDashboard.putNumber("RobotPoseX AFTER", this.getPose().getX());
             SmartDashboard.putNumber("RobotPoseY AFTER", this.getPose().getY());
@@ -219,7 +223,12 @@ public class Swerve extends SubsystemBase {
             SmartDashboard.putNumber("Path end  Y", pathEndWaypoint.anchor().getY());
             SmartDashboard.putNumber("Path end  Rotation", path.getGoalEndState().rotation().getDegrees());
 
+            FieldObject2d start = field.getObject("PathStart");
+            start.setPose(pathStartWaypoint.anchor().getX(), pathStartWaypoint.anchor().getY(), path.getIdealStartingState().rotation());
             
+            FieldObject2d end = field.getObject("PathEnd");
+            end.setPose(pathEndWaypoint.anchor().getX(), pathEndWaypoint.anchor().getY(), path.getGoalEndState().rotation());
+
             return AutoBuilder.followPath(path);
         } catch (Exception e) {
             DriverStation.reportError(e.getMessage(), e.getStackTrace());
@@ -558,7 +567,7 @@ public Trajectory getTargetingTrajectory(double fwdDist1, double sideDist1, doub
        SmartDashboard.putNumber("RobotPoseX", swerveOdometry.getPoseMeters().getX());
        SmartDashboard.putNumber("RobotPoseY", swerveOdometry.getPoseMeters().getY());
        field.setRobotPose(this.getPose());
-       System.out.println(swerveOdometry.getPoseMeters().getX() + " " + swerveOdometry.getPoseMeters().getY() + " Rotation: " + swerveOdometry.getPoseMeters().getRotation().getDegrees());
+    //    System.out.println(swerveOdometry.getPoseMeters().getX() + " " + swerveOdometry.getPoseMeters().getY() + " Rotation: " + swerveOdometry.getPoseMeters().getRotation().getDegrees());
 
         //for(SwerveModule mod : mSwerveMods){
          // SmartDashboard.putNumber("Mod " + mod.moduleNumber + " CANcoder degrees", mod.getCANcoder().getDegrees());
