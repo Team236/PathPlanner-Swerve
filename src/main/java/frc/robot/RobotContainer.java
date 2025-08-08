@@ -143,8 +143,9 @@ public class RobotContainer {
     //DRIVER CONTROLLER
 
     a.onTrue(new StopRobot(s_Swerve));
+    // try Commands.defer()?
     b.onTrue(s_Swerve.followPathCommand("Test"));
-    x.onTrue(s_Swerve.followPathCommand("Test").andThen(s_Swerve.followPathCommand("Path2")));
+    // x.onTrue(s_Swerve.followPathCommand("Test").andThen(s_Swerve.followPathCommand("Path2")));
   }
 
   public Command getAutonomousCommand() {

@@ -38,6 +38,7 @@ import edu.wpi.first.math.trajectory.TrajectoryGenerator;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -59,6 +60,9 @@ public class Swerve extends SubsystemBase {
     private double tv;
     public Pose2d poseLL; //want to use this pose after this command, after moving with odometry
     public Pose2d targetPose;
+
+    //SmartDashboard
+    private Field2d field = new Field2d();
 
     //targeting
     public SwerveControllerCommand currentSwerveControllerCommand;
@@ -95,6 +99,8 @@ public class Swerve extends SubsystemBase {
             VecBuilder.fill(0.05, 0.05, Math.toRadians(5)), //std deviations in X, Y (meters), and angle of the pose estimate
             VecBuilder.fill(0.5, 0.5, Math.toRadians(30))  //std deviations  in X, Y (meters) and angle of the vision (LL) measurement
         );
+
+        SmartDashboard.putData("Field", field);
 
         // PATH PLANNER
 
@@ -549,6 +555,9 @@ public Trajectory getTargetingTrajectory(double fwdDist1, double sideDist1, doub
       //  SmartDashboard.putNumber("limelight standoff fwd", LimelightHelpers.getTargetPose_CameraSpace("limelight")[2]);
 
        swerveOdometry.update(getGyroYaw(), getModulePositions());
+       SmartDashboard.putNumber("RobotPoseX", swerveOdometry.getPoseMeters().getX());
+       SmartDashboard.putNumber("RobotPoseY", swerveOdometry.getPoseMeters().getY());
+       field.setRobotPose(this.getPose());
        System.out.println(swerveOdometry.getPoseMeters().getX() + " " + swerveOdometry.getPoseMeters().getY() + " Rotation: " + swerveOdometry.getPoseMeters().getRotation().getDegrees());
 
         //for(SwerveModule mod : mSwerveMods){
