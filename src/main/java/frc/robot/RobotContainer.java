@@ -149,8 +149,9 @@ public class RobotContainer {
 
     a.onTrue(new StopRobot(s_Swerve));
     // try Commands.defer()?
-    b.onTrue(Commands.defer(() -> s_Swerve.followPathCommand("Test"), Set.of(s_Swerve)));
-    x.onTrue(Commands.defer(() -> s_Swerve.followPathCommandRobotRelative("Test"), Set.of(s_Swerve)));
+    b.onTrue(Commands.defer(() -> s_Swerve.followPathCommand("Swerve"), Set.of(s_Swerve)));
+    x.onTrue(Commands.defer(() -> s_Swerve.followPathCommand("Test"), Set.of(s_Swerve)).andThen(Commands.defer(() -> s_Swerve.followPathCommand("Test2"), Set.of(s_Swerve))));
+    // x.onTrue(Commands.defer(() -> s_Swerve.followPathCommandRobotRelative("Test"), Set.of(s_Swerve)));
     // x.onTrue(s_Swerve.followPathCommand("Test").andThen(s_Swerve.followPathCommand("Path2")));
   }
 
