@@ -24,6 +24,7 @@ import com.pathplanner.lib.path.IdealStartingState;
 import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.Waypoint;
+import com.pathplanner.lib.util.FlippingUtil;
 
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.PIDController;
@@ -108,13 +109,15 @@ public class Swerve extends SubsystemBase {
 
         SmartDashboard.putString("Starting swerve and pathplanner", "yes");
 
-        RobotConfig config = null;
+        RobotConfig config = null; // this is a PathPlannerLib object that will store the robot config values like mass, wheel numbers, etc. that are set in the App GUI
         try {
             config = RobotConfig.fromGUISettings();
         } catch (Exception e) {
             e.printStackTrace();
         }
 
+        // PathPlanner requires an "AutoBuilder" object to be configured in order to run any paths. This object needs access to the robot's drive/pose methods and other
+        // important information. PathPlanner recommends that this is configured in the drive subsystem's constructor (because it can take a bit to load), so it's done here.
         if (config == null) {
             System.out.println("PathPlanner RobotConfig settings null, may have errored");
         } else {
@@ -188,6 +191,7 @@ public class Swerve extends SubsystemBase {
         return positions;
     }
 
+    // drive method used/required for path planner. Basically just a rewritten drive() (refer to above) method 
     public void driveWithChassisSpeeds(ChassisSpeeds chassisSpeeds) {
         SwerveModuleState[] swerveModuleStates = Constants.Swerve.swerveKinematics.toSwerveModuleStates(chassisSpeeds);
         SwerveDriveKinematics.desaturateWheelSpeeds(swerveModuleStates, Constants.Swerve.maxSpeed);
@@ -205,9 +209,14 @@ public class Swerve extends SubsystemBase {
             SmartDashboard.putNumber("RobotPoseRotation before path start", this.getPose().getRotation().getDegrees());
 
             PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
-            this.resetPose(path.getStartingHolonomicPose().get());
             
-            // Implement something here to get whether red or blue alliance and flip above pose ^ accordingly (and reset odometry to it)
+            Pose2d bluePathStartingPose = path.getStartingHolonomicPose().get(); // starting pose of path, defaults to blue side coordinates
+            
+            if (DriverStation.getAlliance().get() == Alliance.Red) { // if red alliance, flip the path starting pose
+                this.resetPose(FlippingUtil.flipFieldPose(bluePathStartingPose));
+            } else  {
+                this.resetPose(path.getStartingHolonomicPose().get());
+            }
 
             SmartDashboard.putNumber("RobotPoseX AFTER", this.getPose().getX());
             SmartDashboard.putNumber("RobotPoseY AFTER", this.getPose().getY());
@@ -228,6 +237,19 @@ public class Swerve extends SubsystemBase {
             
             FieldObject2d end = field.getObject("PathEnd");
             end.setPose(pathEndWaypoint.anchor().getX(), pathEndWaypoint.anchor().getY(), path.getGoalEndState().rotation());
+
+            return AutoBuilder.followPath(path);
+        } catch (Exception e) {
+            DriverStation.reportError(e.getMessage(), e.getStackTrace());
+            return Commands.none();
+        }
+    }
+
+    // Barebones and default PathPlanner way of following a path. This means that if the robot is not at the start pose of the path,
+    // it will attempt to move there (this is done by PathPlanner). Therefore, ONLY USE if you know robot has a pose and it is at/extremely close to start pose
+    public Command followPathCommandNoReset(String pathName) {
+        try {
+            PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
 
             return AutoBuilder.followPath(path);
         } catch (Exception e) {
