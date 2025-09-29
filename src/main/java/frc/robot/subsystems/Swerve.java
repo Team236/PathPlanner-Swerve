@@ -580,14 +580,70 @@ public Trajectory getTargetingTrajectory(double fwdDist1, double sideDist1, doub
         return exampleTrajectory;
     }
 
+    public void MegaTag2UpdateOdometry() {
+        /* Replaced below with m_poseEstimator.update(getGyroYaw(), getModulePositions()); as done in periodic for swerve odometry
+        m_poseEstimator.update(
+            gyro.getRotation2d(),
+            new SwerveModulePosition[] {
+                mSwerveMods[0].getPosition(), //front left
+                mSwerveMods[1].getPosition(), //front right
+                mSwerveMods[2].getPosition(), //back left
+                mSwerveMods[3].getPosition()  //back right
+            });
+        */   m_poseEstimator.update(getGyroYaw(), getModulePositions());
+
+        boolean useMegaTag2 = true; //set to false to use MegaTag1
+        boolean doRejectUpdate = false;
+        // evaluating which Megatag one or two to use based on above boolean value and 
+        // only incorporate Limelight's estimates when more than one tag is visible (tagcount >= 1)
+        if(useMegaTag2 == false)
+        {
+          LimelightHelpers.PoseEstimate mt1 = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight");
+          if(mt1.tagCount == 1 && mt1.rawFiducials.length == 1)
+          {
+            if(mt1.rawFiducials[0].ambiguity > .7) { doRejectUpdate = true; }
+            if(mt1.rawFiducials[0].distToCamera > 3) { doRejectUpdate = true; }
+          }
+          if(mt1.tagCount == 0) { doRejectUpdate = true; }
+          if(!doRejectUpdate) {     // if doRejectUpdate is false (or NOT true), then update the pose estimator
+            m_poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.5,.5,9999999));
+            m_poseEstimator.addVisionMeasurement(
+                mt1.pose,
+                mt1.timestampSeconds);
+          }
+        }
+        else if (useMegaTag2 == true)
+        {   // only incorporate Limelight's estimates when more than one tag is visible (tagcount >= 1)
+          LimelightHelpers.SetRobotOrientation("limelight", m_poseEstimator.getEstimatedPosition().getRotation().getDegrees(), 0, 0, 0, 0, 0);
+          LimelightHelpers.PoseEstimate mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
+          if(Math.abs(gyro.getAngularVelocityZWorld().getValueAsDouble()) > 720) // if our angular velocity is greater than 720 degrees per second, ignore vision updates
+          {
+            doRejectUpdate = true;
+          }
+          if(mt2.tagCount == 0)
+          {
+            doRejectUpdate = true;
+          }
+          if(!doRejectUpdate)   // if doRejectUpdate is false (or NOT true), then update the pose estimator
+          {
+            m_poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.7,.7,9999999));
+            m_poseEstimator.addVisionMeasurement(
+                mt2.pose,
+                mt2.timestampSeconds);
+          }
+      }
+    }
 
     @Override
     public void periodic(){
       //  SmartDashboard.putNumber("limelight standoff fwd", LimelightHelpers.getTargetPose_CameraSpace("limelight")[2]);
 
-       swerveOdometry.update(getGyroYaw(), getModulePositions());
+    //    swerveOdometry.update(getGyroYaw(), getModulePositions());
+    MegaTag2UpdateOdometry();
        SmartDashboard.putNumber("RobotPoseX", swerveOdometry.getPoseMeters().getX());
        SmartDashboard.putNumber("RobotPoseY", swerveOdometry.getPoseMeters().getY());
+       SmartDashboard.putNumber("RobotPoseX (Estimator)", m_poseEstimator.getEstimatedPosition().getX());
+       SmartDashboard.putNumber("RobotPoseY (Estimator)", m_poseEstimator.getEstimatedPosition().getY());
        field.setRobotPose(this.getPose());
     //    System.out.println(swerveOdometry.getPoseMeters().getX() + " " + swerveOdometry.getPoseMeters().getY() + " Rotation: " + swerveOdometry.getPoseMeters().getRotation().getDegrees());
 
