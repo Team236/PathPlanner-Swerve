@@ -400,142 +400,6 @@ public class Swerve extends SubsystemBase {
         }
     }
 
-    /**
-     * 
-     * @param type "left" or "algae" or "right"
-     * 
-     */
-    public void updateTargetingValues(String type) {
-        Pose2d robotFieldPose;
-        Pose2d targetFieldPose;
-        double tv;
-        int targetId;
-        Optional<Alliance> alliance = DriverStation.getAlliance();
-        
-        tv = NetworkTableInstance.getDefault().getTable("limelight").getEntry("tv").getDouble(0); //if target is seen
-        targetId = (int) NetworkTableInstance.getDefault().getTable("limelight").getEntry("tid").getDouble(0); //target id
-        
-        var thetaController =
-            new ProfiledPIDController(
-                Constants.AutoConstants.kPThetaController, 0, 0, Constants.AutoConstants.kThetaControllerConstraints);
-        thetaController.enableContinuousInput(-Math.PI, Math.PI);
-        
-        if (tv == 1 && Constants.Targeting.REEF_IDS.contains(targetId)) {
-            robotFieldPose = LimelightHelpers.getBotPose2d_wpiBlue("limelight");
-
-            //april tag coordinates
-            double x2 = Constants.Targeting.ID_TO_POSE.get(targetId).getX(); 
-            double y2 = Constants.Targeting.ID_TO_POSE.get(targetId).getY(); 
-            double angle2 = Constants.Targeting.ID_TO_POSE.get(targetId).getRotation().getRadians();
-
-            //Get the AprilTag pose now, then reset the robot's pose to this value at the end of MetricDriveFwdAndSideAndTurn
-            //(after targeting) so that the driving is field oriented after targeting:
-            this.getTargetPose(new Pose2d(x2, y2, new Rotation2d(angle2)));
-            
-            //robotFieldPose is from center of robot
-            double angle1 = robotFieldPose.getRotation().getRadians();
-            double x1 = robotFieldPose.getX() - (Constants.Targeting.DIST_ROBOT_CENTER_TO_FRONT_WITH_BUMPER*(0.0254)) * Math.cos(angle2) - (Constants.Targeting.DIST_ROBOT_CENTER_TO_LL_SIDEWAYS*(0.0254))*Math.sin((angle2));
-            double y1 = robotFieldPose.getY() + (Constants.Targeting.DIST_ROBOT_CENTER_TO_LL_SIDEWAYS*(0.0254))*Math.cos((angle2)) - (Constants.Targeting.DIST_ROBOT_CENTER_TO_FRONT_WITH_BUMPER*(0.0254)) * Math.sin((angle2));
-
-            if (type.equals("right")) {
-                y1 -= Constants.Targeting.DIST_TAG_RIGHT_BRANCH * Math.cos((angle2)) * 0.0254;
-                x1 += Constants.Targeting.DIST_TAG_RIGHT_BRANCH * Math.sin((angle2)) * 0.0254;
-            } else if (type.equals("algae")) {
-                y1 -= Constants.Targeting.DIST_ALGAE_CENTERED_LL * Math.cos((angle2)) * 0.0254;
-                x1 += Constants.Targeting.DIST_ALGAE_CENTERED_LL * Math.sin((angle2)) * 0.0254;
-            } else if (type.equals("left")) {
-                y1 += Constants.Targeting.DIST_TAG_LEFT_BRANCH * Math.cos((angle2)) * 0.0254;
-                x1 -= Constants.Targeting.DIST_TAG_LEFT_BRANCH * Math.sin((angle2)) * 0.0254;
-            }
-      
-            /*SmartDashboard.putNumber("Target ID", targetId);
-            SmartDashboard.putNumber("x1: ", x1 / 0.0254);
-            SmartDashboard.putNumber("y1: ", y1/ 0.0254);
-            SmartDashboard.putNumber("angle1", Units.radiansToDegrees(angle1));
-            SmartDashboard.putNumber("x2: ", x2/ 0.0254);
-            SmartDashboard.putNumber("y2: ", y2/ 0.0254);
-            SmartDashboard.putNumber("angle2", Units.radiansToDegrees(angle2));
-            */
-
-            // DRIVE SEGMENT
-    
-            double deltaFwd = x2 - x1;
-            double deltaSide = y2 - y1;
-            double deltaAngle = angle2- angle1;
-
-            boolean reversed = false; 
-
-            TrajectoryConfig config =
-                new TrajectoryConfig(
-                        Constants.AutoConstants.kMaxSpeedMetersPerSecond,
-                        Constants.AutoConstants.kMaxAccelerationMetersPerSecondSquared)
-                    .setKinematics(Constants.Swerve.swerveKinematics).setReversed(reversed);
-
-            // An example trajectory to follow.  All units in meters.
-            Trajectory exampleTrajectory =
-            TrajectoryGenerator.generateTrajectory(
-            // Start at the origin facing the +X direction
-                new Pose2d(x1, y1, new Rotation2d((angle1))),
-            // Pass through these interior waypoints
-            List.of(
-                    new Translation2d((x1+0.05*deltaFwd), (y1+0.05*deltaSide)), 
-                    new Translation2d((x1+0.1*deltaFwd), (y1+0.1*deltaSide)),
-                    new Translation2d((x1+0.15*deltaFwd), (y1+0.15*deltaSide)),
-                    new Translation2d((x1+0.2*deltaFwd), (y1+0.2*deltaSide)), 
-                    new Translation2d((x1+0.25*deltaFwd), (y1+0.25*deltaSide)),
-                    new Translation2d((x1+0.3*deltaFwd), (y1+0.3*deltaSide)),
-                    new Translation2d((x1+0.35*deltaFwd), (y1+0.35*deltaSide)), 
-                    new Translation2d((x1+0.4*deltaFwd), (y1+0.4*deltaSide)),
-                    new Translation2d((x1+0.45*deltaFwd), (y1+0.45*deltaSide)), 
-                    new Translation2d((x1+0.5*deltaFwd), (y1+0.5*deltaSide)),
-                    new Translation2d((x1+0.55*deltaFwd), (y1+0.55*deltaSide)),
-                    new Translation2d((x1+0.6*deltaFwd), (y1+0.6*deltaSide)), 
-                    new Translation2d((x1+0.65*deltaFwd), (y1+0.65*deltaSide)),
-                    new Translation2d((x1+0.7*deltaFwd), (y1+0.7*deltaSide)),
-                    new Translation2d((x1+0.75*deltaFwd), (y1+0.75*deltaSide)), 
-                    new Translation2d((x1+0.8*deltaFwd), (y1+0.8*deltaSide)),
-                    new Translation2d((x1+0.85*deltaFwd), (y1+0.85*deltaSide)), 
-                    new Translation2d((x1+0.9*deltaFwd), (y1+0.9*deltaSide)),
-                    new Translation2d((x1+0.95*deltaFwd), (y1+0.95*deltaSide))
-                    ),  
-            // End here
-            new Pose2d(x2, y2, new Rotation2d((angle2 + Math.PI))), //add 180 because target and robot are facing opposite directions
-            config);
-
-            currentTrajectory = exampleTrajectory;
-                
-
-            SwerveControllerCommand swerveControllerCommand =
-                new SwerveControllerCommand(
-                    exampleTrajectory,
-                    this::getPose,
-                    Constants.Swerve.swerveKinematics,
-                    new PIDController(Constants.AutoConstants.kPXController, 0, 0),
-                    new PIDController(Constants.AutoConstants.kPYController, 0, 0),
-                    thetaController,
-                    this::setModuleStates,
-                    this);
-            
-            currentSwerveControllerCommand = swerveControllerCommand;
-        } else {
-            Trajectory exampleTrajectory = new Trajectory(); // empty trajectory if there is no target found
-            currentTrajectory = exampleTrajectory;
-
-            SwerveControllerCommand swerveControllerCommand =
-                new SwerveControllerCommand(
-                    exampleTrajectory,
-                    this::getPose,
-                    Constants.Swerve.swerveKinematics,
-                    new PIDController(Constants.AutoConstants.kPXController, 0, 0),
-                    new PIDController(Constants.AutoConstants.kPYController, 0, 0),
-                    thetaController,
-                    this::setModuleStates,
-                    this);
-            currentSwerveControllerCommand = swerveControllerCommand;
-        }
-    }
-
-
 public Trajectory getTargetingTrajectory(double fwdDist1, double sideDist1, double turnAngle1, double fwdDist2, double sideDist2, double turnAngle2, boolean reversed) {
     double deltaFwd = fwdDist2-fwdDist1;
     double deltaSide = sideDist2 - sideDist1;
@@ -614,24 +478,28 @@ public Trajectory getTargetingTrajectory(double fwdDist1, double sideDist1, doub
         }
         else if (useMegaTag2 == true)
         {   // only incorporate Limelight's estimates when more than one tag is visible (tagcount >= 1)
-          LimelightHelpers.SetRobotOrientation("limelight", m_poseEstimator.getEstimatedPosition().getRotation().getDegrees(), 0, 0, 0, 0, 0);
-          LimelightHelpers.PoseEstimate mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
-          if(Math.abs(gyro.getAngularVelocityZWorld().getValueAsDouble()) > 720) // if our angular velocity is greater than 720 degrees per second, ignore vision updates
-          {
-            doRejectUpdate = true;
+            LimelightHelpers.SetRobotOrientation("limelight", m_poseEstimator.getEstimatedPosition().getRotation().getDegrees(), 0, 0, 0, 0, 0);
+            LimelightHelpers.PoseEstimate mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
+            if(Math.abs(gyro.getAngularVelocityZWorld().getValueAsDouble()) > 720) // if our angular velocity is greater than 720 degrees per second, ignore vision updates
+            {
+                doRejectUpdate = true;
+            }
+            if(mt2.tagCount == 0)
+            {
+                doRejectUpdate = true;
+            }
+            if(!doRejectUpdate)   // if doRejectUpdate is false (or NOT true), then update the pose estimator
+            {
+                m_poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.7,.7,9999999));
+                m_poseEstimator.addVisionMeasurement(
+                    mt2.pose,
+                    mt2.timestampSeconds);
           }
-          if(mt2.tagCount == 0)
-          {
-            doRejectUpdate = true;
-          }
-          if(!doRejectUpdate)   // if doRejectUpdate is false (or NOT true), then update the pose estimator
-          {
-            m_poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.7,.7,9999999));
-            m_poseEstimator.addVisionMeasurement(
-                mt2.pose,
-                mt2.timestampSeconds);
-          }
-      }
+        }
+
+        // should be functionally equivalent to everything above, just resetting swerveOdometry variable to the value of the pose estimator
+        // because it is more commonly used in here
+        this.resetPose(m_poseEstimator.getEstimatedPosition());
     }
 
     @Override
