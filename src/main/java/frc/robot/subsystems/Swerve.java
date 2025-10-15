@@ -50,10 +50,9 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
 
 public class Swerve extends SubsystemBase {
-    public SwerveDriveOdometry swerveOdometry;
     public SwerveModule[] mSwerveMods;
     public Pigeon2 gyro;
-    public SwerveDrivePoseEstimator m_poseEstimator;
+    public SwerveDrivePoseEstimator m_poseEstimator; // this pose estimator can do essentially everything swerve odometry can, with added vision capabilities
     public double poseAngle;
     public double poseForwardDistance;
     public double poseSideDistance;
@@ -85,15 +84,13 @@ public class Swerve extends SubsystemBase {
             new SwerveModule(3, Constants.Swerve.Mod3.constants) //back right
         };
 
-        swerveOdometry = new SwerveDriveOdometry(Constants.Swerve.swerveKinematics, getGyroYaw(), getModulePositions());
-
         /* Here we use SwerveDrivePoseEstimator so that we can fuse odometry readings, for 3D targeting. 
         The numbers used below are robot specific, and should be tuned. */
         m_poseEstimator = new SwerveDrivePoseEstimator(
             Constants.Swerve.swerveKinematics,
             gyro.getRotation2d(),
             new SwerveModulePosition[] {
-                 mSwerveMods[0].getPosition(), //front left
+                mSwerveMods[0].getPosition(), //front left
                 mSwerveMods[1].getPosition(), //front right
                 mSwerveMods[2].getPosition(), //back left
                 mSwerveMods[3].getPosition()  //back right
@@ -324,11 +321,11 @@ public class Swerve extends SubsystemBase {
     }
 
     public Pose2d getPose() {
-        return swerveOdometry.getPoseMeters();
+        return m_poseEstimator.getEstimatedPosition();
     }
 
     public void resetPose(Pose2d pose) {
-        swerveOdometry.resetPosition(getGyroYaw(), getModulePositions(), pose);
+        m_poseEstimator.resetPosition(getGyroYaw(), getModulePositions(), pose);
     }
 
     public Rotation2d getHeading(){
@@ -336,11 +333,11 @@ public class Swerve extends SubsystemBase {
     }
 
     public void setHeading(Rotation2d heading){
-        swerveOdometry.resetPosition(getGyroYaw(), getModulePositions(), new Pose2d(getPose().getTranslation(), heading));
+        m_poseEstimator.resetPosition(getGyroYaw(), getModulePositions(), new Pose2d(getPose().getTranslation(), heading));
     }
 
     public void zeroHeading(){
-        swerveOdometry.resetPosition(getGyroYaw(), getModulePositions(), new Pose2d(getPose().getTranslation(), new Rotation2d()));
+        m_poseEstimator.resetPosition(getGyroYaw(), getModulePositions(), new Pose2d(getPose().getTranslation(), new Rotation2d()));
     }
 
     public Rotation2d getGyroYaw() {
@@ -496,10 +493,6 @@ public Trajectory getTargetingTrajectory(double fwdDist1, double sideDist1, doub
                     mt2.timestampSeconds);
           }
         }
-
-        // should be functionally equivalent to everything above, just resetting swerveOdometry variable to the value of the pose estimator
-        // because it is more commonly used in here
-        this.resetPose(m_poseEstimator.getEstimatedPosition());
     }
 
     @Override
@@ -507,12 +500,9 @@ public Trajectory getTargetingTrajectory(double fwdDist1, double sideDist1, doub
       //  SmartDashboard.putNumber("limelight standoff fwd", LimelightHelpers.getTargetPose_CameraSpace("limelight")[2]);
 
     //    swerveOdometry.update(getGyroYaw(), getModulePositions());
-    MegaTag2UpdateOdometry();
-       SmartDashboard.putNumber("RobotPoseX", swerveOdometry.getPoseMeters().getX());
-       SmartDashboard.putNumber("RobotPoseY", swerveOdometry.getPoseMeters().getY());
-       SmartDashboard.putNumber("RobotPoseX (Estimator)", m_poseEstimator.getEstimatedPosition().getX());
-       SmartDashboard.putNumber("RobotPoseY (Estimator)", m_poseEstimator.getEstimatedPosition().getY());
-       field.setRobotPose(this.getPose());
+        MegaTag2UpdateOdometry();
+       SmartDashboard.putNumber("** RobotPoseX (Estimator)", m_poseEstimator.getEstimatedPosition().getX());
+       SmartDashboard.putNumber("** RobotPoseY (Estimator)", m_poseEstimator.getEstimatedPosition().getY());
     //    System.out.println(swerveOdometry.getPoseMeters().getX() + " " + swerveOdometry.getPoseMeters().getY() + " Rotation: " + swerveOdometry.getPoseMeters().getRotation().getDegrees());
 
         //for(SwerveModule mod : mSwerveMods){
