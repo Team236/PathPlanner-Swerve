@@ -52,6 +52,8 @@ import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
 public class Swerve extends SubsystemBase {
     public SwerveModule[] mSwerveMods;
     public Pigeon2 gyro;
+
+    public SwerveDriveOdometry swerveOdometry; //odometry object for tracking robot pose
     public SwerveDrivePoseEstimator m_poseEstimator; // this pose estimator can do essentially everything swerve odometry can, with added vision capabilities
     public double poseAngle;
     public double poseForwardDistance;
@@ -84,6 +86,7 @@ public class Swerve extends SubsystemBase {
             new SwerveModule(3, Constants.Swerve.Mod3.constants) //back right
         };
 
+        swerveOdometry = new SwerveDriveOdometry(Constants.Swerve.swerveKinematics, getGyroYaw(), getModulePositions());
         /* Here we use SwerveDrivePoseEstimator so that we can fuse odometry readings, for 3D targeting. 
         The numbers used below are robot specific, and should be tuned. */
         m_poseEstimator = new SwerveDrivePoseEstimator(
@@ -452,6 +455,7 @@ public Trajectory getTargetingTrajectory(double fwdDist1, double sideDist1, doub
                 mSwerveMods[3].getPosition()  //back right
             });
         */   m_poseEstimator.update(getGyroYaw(), getModulePositions());
+        swerveOdometry.update(getGyroYaw(), getModulePositions());
 
         boolean useMegaTag2 = true; //set to false to use MegaTag1
         boolean doRejectUpdate = false;
@@ -476,22 +480,28 @@ public Trajectory getTargetingTrajectory(double fwdDist1, double sideDist1, doub
         else if (useMegaTag2 == true)
         {   // only incorporate Limelight's estimates when more than one tag is visible (tagcount >= 1)
             LimelightHelpers.SetRobotOrientation("limelight", m_poseEstimator.getEstimatedPosition().getRotation().getDegrees(), 0, 0, 0, 0, 0);
-            LimelightHelpers.PoseEstimate mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
-            if(Math.abs(gyro.getAngularVelocityZWorld().getValueAsDouble()) > 720) // if our angular velocity is greater than 720 degrees per second, ignore vision updates
-            {
-                doRejectUpdate = true;
+            
+            // try-catch because sometimes mt2 hasn't loaded yet when deploying
+            try {
+                LimelightHelpers.PoseEstimate mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight");
+                if(Math.abs(gyro.getAngularVelocityZWorld().getValueAsDouble()) > 720) // if our angular velocity is greater than 720 degrees per second, ignore vision updates
+                {
+                    doRejectUpdate = true;
+                }
+                if(mt2.tagCount == 0)
+                {
+                    doRejectUpdate = true;
+                }
+                if(!doRejectUpdate)   // if doRejectUpdate is false (or NOT true), then update the pose estimator
+                {
+                    m_poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.7,.7,9999999));
+                    m_poseEstimator.addVisionMeasurement(
+                        mt2.pose,
+                        mt2.timestampSeconds);
+                }
+            } catch (Exception e) {
+                System.out.println("MT2 may be null? (check if estimator pose is updating)");
             }
-            if(mt2.tagCount == 0)
-            {
-                doRejectUpdate = true;
-            }
-            if(!doRejectUpdate)   // if doRejectUpdate is false (or NOT true), then update the pose estimator
-            {
-                m_poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.7,.7,9999999));
-                m_poseEstimator.addVisionMeasurement(
-                    mt2.pose,
-                    mt2.timestampSeconds);
-          }
         }
     }
 
@@ -501,6 +511,8 @@ public Trajectory getTargetingTrajectory(double fwdDist1, double sideDist1, doub
 
     //    swerveOdometry.update(getGyroYaw(), getModulePositions());
         MegaTag2UpdateOdometry();
+        SmartDashboard.putNumber("RobotPoseX (Odometry)", swerveOdometry.getPoseMeters().getX());
+        SmartDashboard.putNumber("RobotPoseY (Odometry)", swerveOdometry.getPoseMeters().getY());
        SmartDashboard.putNumber("** RobotPoseX (Estimator)", m_poseEstimator.getEstimatedPosition().getX());
        SmartDashboard.putNumber("** RobotPoseY (Estimator)", m_poseEstimator.getEstimatedPosition().getY());
     //    System.out.println(swerveOdometry.getPoseMeters().getX() + " " + swerveOdometry.getPoseMeters().getY() + " Rotation: " + swerveOdometry.getPoseMeters().getRotation().getDegrees());
